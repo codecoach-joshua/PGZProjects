@@ -32,12 +32,12 @@ cooldownTimer = 0
 # speed setting for how fast the missile moves across the screen (pixels/second)
 missileSpeed = 900 
 # track when animation is currently active in the game
-missileAnimation = None #start out with no animation
+animation = None #start out with no animation
 
 #### GLOBAL VARIABLES FOR THE GAME CODE ####
 
 def on_mouse_down(pos):
-    global missileAnimation, cooldownTimer
+    global animation, cooldownTimer
 
     # check timer if player is allowed to shoot
     if cooldownTimer <= 0:
@@ -56,7 +56,7 @@ def on_mouse_down(pos):
         time = distance / missileSpeed
 
         # update animation variable for missile
-        missileAnimation = animate(missile, pos=pos, duration=time)
+        animation = animate(missile, pos=pos, duration=time)
 
 def on_mouse_move(pos):
     # calculate angle
@@ -114,10 +114,6 @@ def update():
     if moving_right:
         tank.x += tank_speed
 
-    #only handle missile's collision if there is an animation active and running
-    if missileAnimation and missileAnimation.running:
-        pass # TODO in part 3
-
 def draw():
     # white background
     screen.fill("white") 
@@ -129,7 +125,13 @@ def draw():
     crosshair.draw()
 
     #only draw missile if there is an animation active and running
-    if missileAnimation and missileAnimation.running:
-        missile.draw()
+    if animation:
+        if animation.running:
+            missile.draw()
+
+    # draw game over text when end of game
+    if gameover:
+        screen.draw.text("GAME OVER", pos=(WIDTH/3, HEIGHT/2),
+                          fontsize=50, color="red")
 
 pgzrun.go()

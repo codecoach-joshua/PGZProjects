@@ -11,6 +11,10 @@ class FollowingEnemy:
         self.totalVelocity = velocity
         # track whether or not enemy is still active
         self.alive = True
+
+    # checks actor's collision with point on screen
+    def collidepoint(self, point):
+        return self.alive and self.actor.collidepoint(point)
             
     def update(self, target):
         # only move if still alive
@@ -32,7 +36,6 @@ class FollowingEnemy:
         # only draw if still alive
         if self.alive:
             self.actor.draw()
-
 
 #### GLOBAL VARIABLES FOR THE GAME CODE ####
 
@@ -69,15 +72,18 @@ cooldownTimer = 0
 # speed setting for how fast the missile moves across the screen (pixels/second)
 missileSpeed = 800 
 # track when animation is currently active in the game
-missileAnimation = None #start out with no animation
+animation = None #start out with no animation
 
 # list to keep track of enemies in game
 enemyList = []
 
+# track the player's score
+score = 0
+
 #### GLOBAL VARIABLES FOR THE GAME CODE ####
 
 def on_mouse_down(pos):
-    global missileAnimation, cooldownTimer
+    global animation, cooldownTimer
 
     # check timer if player is allowed to shoot
     if cooldownTimer <= 0:
@@ -96,7 +102,7 @@ def on_mouse_down(pos):
         time = distance / missileSpeed
 
         # update animation variable for missile
-        missileAnimation = animate(missile, pos=pos, duration=time)
+        animation = animate(missile, pos=pos, duration=time)
 
 def on_mouse_move(pos):
     # calculate angle
@@ -136,17 +142,30 @@ def on_key_up(key):
         moving_right = False
 
 def update():
-    global cooldownTimer, gameover
+    global cooldownTimer, gameover, score
 
     # only update the game when not gameover
     if not gameover:
         # update enemies in list
         for enemy in enemyList:
-            enemy.update(tank.pos)
-
-            if tank.collidepoint(enemy.actor.pos):
-                gameover = True
-                break
+            # check collision with missile if animation is running
+            if animation:
+                if animation.running:
+                    if enemy.collidepoint(missile.pos):
+                        #add to score
+                        score += 100
+                        #set enemy dead
+                        enemy.alive = False
+                        #stop missile animation
+                        animation.running = False
+                        
+            # only update active enemies
+            if enemy.alive:
+                enemy.update(tank.pos)
+                # check collision with tank
+                if tank.collidepoint(enemy.actor.pos):
+                    gameover = True
+                    break
         
         # update cooldown
         if cooldownTimer > 0:
@@ -164,21 +183,6 @@ def update():
         if moving_right:
             tank.x += tank_speed
 
-        #only handle missile's collision if there is an animation active and running
-        if missileAnimation and missileAnimation.running:
-            # loop through enemies
-            for enemy in enemyList:
-                # only collide with active enemies
-                if enemy.alive:
-                    # check collision
-                    if missile.colliderect(enemy.actor):
-                        # kill enemy
-                        enemy.alive = False
-                        # turn off animation
-                        missileAnimation.running = False
-                        # break out of loop
-                        break
-
 def draw():
     # white background
     screen.fill("white")
@@ -194,13 +198,17 @@ def draw():
     crosshair.draw()
 
     #only draw missile if there is an animation active and running
-    if missileAnimation and missileAnimation.running:
-        missile.draw()
+    if animation:
+        if animation.running:
+            missile.draw()
 
     # draw game over text when end of game
     if gameover:
         screen.draw.text("GAME OVER", pos=(WIDTH/3, HEIGHT/2),
                           fontsize=50, color="red")
+
+    screen.draw.text("Score: " + str(score), pos=(25, 25),
+                          fontsize=30, color="green")
 
 # spawn a new enemy at a random location a set distance away from the player
 def spawn_enemy(distance = 500):

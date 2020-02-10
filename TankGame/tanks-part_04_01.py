@@ -37,7 +37,28 @@ class FollowingEnemy:
         if self.alive:
             self.actor.draw()
 
+# class for handling explosions that exist for a short time
+class Explosion:
+    def __init__(self, actor, lifetime=40):
+        #image data
+        self.actor = actor
+        #time in frames explosion lasts
+        self.lifetime = lifetime
 
+    #collision detection
+    def collidepoint(self, point):
+        return self.lifetime > 0 and self.actor.collidepoint(point)
+
+    def update(self):
+        #countdown lifetime
+        if self.lifetime > 0:
+            self.lifetime -= 1
+
+    def draw(self):
+        #only draw active explosions
+        if self.lifetime > 0:
+            self.actor.draw()
+            
 #### GLOBAL VARIABLES FOR THE GAME CODE ####
 
 # setup screen size
@@ -49,11 +70,11 @@ tank = Actor("tank")
 # position to start in center of screen
 tank.pos=(WIDTH/2, HEIGHT/2)
 
-# crosshair image to show where the tank is aiming
-crosshair = Actor("crosshair")
-
 # position to start in center of screen
 gameover = False
+
+# crosshair image to show where the tank is aiming
+crosshair = Actor("crosshair")
 
 # global variables to track when to move the tank
 moving_up = False
@@ -77,6 +98,12 @@ animation = None #start out with no animation
 
 # list to keep track of enemies in game
 enemyList = []
+
+# track the player's score
+score = 0
+
+# list to track explosions in game
+explosionList = []
 
 #### GLOBAL VARIABLES FOR THE GAME CODE ####
 
@@ -140,13 +167,42 @@ def on_key_up(key):
         moving_right = False
 
 def update():
-    global cooldownTimer
+    global cooldownTimer, gameover, score
 
     # only update the game when not gameover
     if not gameover:
         # update enemies in list
         for enemy in enemyList:
-            enemy.update(tank.pos)
+            # check collision with missile if animation is running
+            if animation:
+                if animation.running:
+                    if enemy.collidepoint(missile.pos):
+                        #add to score
+                        score += 100
+                        #set enemy dead
+                        enemy.alive = False
+                        #stop missile animation
+                        animation.running = False
+                        #add explosion
+                        actor = Actor("explosion", pos=(missile.pos))
+                        explosionList.append(Explosion(actor))
+                        
+            # only update active enemies
+            if enemy.alive:
+                enemy.update(tank.pos)
+                # check collision with tank
+                if tank.collidepoint(enemy.actor.pos):
+                    gameover = True
+                    break
+
+        # loop through explosions
+        for explosion in explosionList:
+            explosion.update()
+            #check enemies
+            for enemy in enemyList:
+                if explosion.collidepoint(enemy.actor.pos):
+                    enemy.alive = False
+                    score += 100
         
         # update cooldown
         if cooldownTimer > 0:
@@ -163,14 +219,18 @@ def update():
             
         if moving_right:
             tank.x += tank_speed
-
+            
 def draw():
     # white background
-    screen.fill("white") 
-
+    screen.fill("white")
+    
     # draw enemies in list
     for enemy in enemyList:
         enemy.draw()
+        
+    for explosion in explosionList:
+        #draw explosion
+        explosion.draw()
 
     #draw tank
     tank.draw()
@@ -178,7 +238,7 @@ def draw():
     #draw crosshair
     crosshair.draw()
 
-    #only draw missile if there is an animation active and running
+    #only draw missile if its animation is active and running
     if animation:
         if animation.running:
             missile.draw()
@@ -187,6 +247,9 @@ def draw():
     if gameover:
         screen.draw.text("GAME OVER", pos=(WIDTH/3, HEIGHT/2),
                           fontsize=50, color="red")
+
+    screen.draw.text("Score: " + str(score), pos=(25, 25),
+                          fontsize=30, color="green")
 
 # spawn a new enemy at a random location a set distance away from the player
 def spawn_enemy(distance = 500):
